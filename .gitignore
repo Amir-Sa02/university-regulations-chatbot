@@ -1,0 +1,12 @@
+# Environment variables
+.env
+
+# Documents folder
+document/
+
+# Python generated files
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
