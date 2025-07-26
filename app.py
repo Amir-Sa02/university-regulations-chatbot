@@ -1,14 +1,14 @@
 from flask import Flask, render_template, request, jsonify
-# We now need access to the chat_engine object to reset it.
-from rag_core import answer_with_rag, chat_engine
+from rag_core import answer_with_rag, memory
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
-    """Serves the main HTML page and resets the chat engine's memory for a new session."""
-    if chat_engine:
-        chat_engine.reset() # This clears the memory for a fresh start.
+    """Serves the main HTML page and resets the chat memory for a new session."""
+    # We now check for and reset the 'memory' object directly.
+    if memory:
+        memory.reset() 
         print("Chat history has been reset for the new session.")
     return render_template("index.html")
 
@@ -19,7 +19,7 @@ def chat():
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
     
-    # We no longer need to pass the history. The engine manages it internally.
+    # The rag_core function now handles its own memory.
     bot_response = answer_with_rag(user_message)
     
     return jsonify({"response": bot_response})

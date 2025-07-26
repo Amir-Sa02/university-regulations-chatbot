@@ -1,7 +1,7 @@
 # Environment variables
 .env
 
-# Documents folder
+# folder
 document/
 
 # Python generated files

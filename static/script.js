@@ -81,5 +81,5 @@ chatForm.addEventListener('submit', async (e) => {
 });
 
 window.addEventListener('load', () => {
-    appendMessage('bot', 'سلام! من دستیار هوشمند شما برای محصولات الکترونیکی هستم. سوال خود را بپرسید.');
+    appendMessage('bot', 'سلام! من دستیار هوشمند شما برای سوالات مرتبط با آیین نامه دانشگاه هستم. سوال خود را از من بپرسید.');
 });

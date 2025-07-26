@@ -1,96 +1,106 @@
-# File: rag_core.py
-# This version is adapted for an English-language knowledge base.
-# The core logic remains the same, but the prompt is now in English.
-
 import os
 from dotenv import load_dotenv
 from llama_index.core import StorageContext, load_index_from_storage, PromptTemplate
-from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.llms.groq import Groq
-from llama_index.core import Settings
+from llama_index.core.settings import Settings
 from llama_index.core.memory import ChatMemoryBuffer
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.llms.groq import Groq
+from llama_index.core.llms import ChatMessage, MessageRole
 
-# --- Load environment variables ---
+# Load environment variables
 load_dotenv()
 
-# --- Global variables ---
-chat_engine = None
+# Global components
+'''
+This is the "search engine" or retriever. After being initialized, 
+it holds the LlamaIndex object that knows how to search the dataset to find the most relevant parts of the regulations
+'''
+retriever = None 
+memory = None
+qa_template = None
 
 def initialize_rag_system():
-    """
-    Initializes the RAG system with an English prompt template.
-    """
-    global chat_engine
+
+    global retriever, memory, qa_template
+    print("Initializing Final Stable RAG System...")
     
-    print("Initializing RAG system for English regulations...")
-    
-    # --- Configure the models ---
-    Settings.embed_model = OllamaEmbedding(model_name="nomic-embed-text")
-    
+    # Configure the models
     try:
         Settings.llm = Groq(
             model="llama-3.1-8b-instant",
             api_key=os.getenv("GROQ_API_KEY"),
             temperature=0.2
         )
-        print(f"Groq LLM ({Settings.llm.model}) configured successfully.")
+        # You need to be online for the first time to download this model from HuggingFace
+        Settings.embed_model = HuggingFaceEmbedding(model_name="heydariai/persian-embeddings") 
+        print(f"Models configured successfully.")
     except Exception as e:
-        print(f"❌ Error configuring Groq LLM: {e}")
+        print(f"❌ Error configuring models: {e}")
         return
 
-    # --- CRITICAL CHANGE: The prompt is now in English ---
-    # This prompt defines the persona and strict rules for the regulations assistant.
     qa_prompt_template_str = (
-        "You are an AI assistant acting as an expert on the 'Sadjad University Educational Regulations'.\n"
-        "Your task is to provide clear and accurate answers to student questions based on the information provided in the 'Relevant Context from the Regulations' section below.\n\n"
-        "**Your Behavioral Rules (Very Important):**\n"
-        "1.  **Stay on Topic:** You only answer questions related to the educational regulations. If asked about other topics (like history, literature, etc.), politely state that it is outside your area of expertise.\n"
-        "2.  **Strictly Adhere to the Source:** Your answers must ALWAYS and ONLY be based on the provided 'Relevant Context'. Never, under any circumstances, invent a rule or provide information not present in the source. If the context does not contain the answer, state that you do not have that information.\n"
-        "3.  **Professional Tone:** Address users in a professional, formal, and helpful manner. Formulate your answers as clear and readable paragraphs.\n"
-        "4.  **Information Security:** Never mention your data source, file paths, or any internal system metadata.\n\n"
+        "شما یک دستیار هوش مصنوعی هستید که به عنوان کارشناس متخصص در 'آیین‌نامه آموزشی دانشگاه سجاد' فعالیت می‌کنید.\n"
+        "وظیفه شما پاسخ دقیق و واضح به سوالات دانشجویان بر اساس اطلاعاتی است که در ادامه در بخش 'اطلاعات مرتبط از آیین‌نامه' ارائه شده است.\n\n"
+        "**قوانین رفتاری شما (بسیار مهم):**\n"
+        "1.  **پایبندی کامل به منبع:** پاسخ‌های شما باید همیشه و فقط بر اساس 'اطلاعات مرتبط از آیین‌نامه' باشد. هرگز، تحت هیچ شرایطی، قانونی را از خود ابداع نکنید.\n"
+        "2.  **حفظ حوزه تخصصی:** شما فقط به سوالات مربوط به قوانین آموزشی پاسخ می‌دهید.\n"
+        "3.  **لحن حرفه‌ای و رسمی:** با کاربران به صورت رسمی اما مفید و راهگشا صحبت کنید.\n\n"
         "---------------------\n"
-        "[Relevant Context from the Regulations]\n"
+        "[اطلاعات مرتبط از آیین‌نامه]\n"
         "{context_str}\n"
         "---------------------\n"
-        "[User's Question]\n"
+        "[سوال کاربر]\n"
         "{question}\n"
         "---------------------\n"
-        "[Your Answer]\n"
+        "[پاسخ شما]\n"
     )
-    qa_prompt_template = PromptTemplate(qa_prompt_template_str)
+    qa_template = PromptTemplate(qa_prompt_template_str)
 
     try:
-        # Load the pre-built index from the 'storage' directory.
         storage_context = StorageContext.from_defaults(persist_dir="./storage")
         index = load_index_from_storage(storage_context)
-        
-        # Use a stable chat memory buffer.
+        retriever = index.as_retriever(similarity_top_k=3)
         memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
-        
-        # Create the chat engine with our custom English prompt and memory.
-        chat_engine = index.as_chat_engine(
-            chat_mode="condense_plus_context",
-            memory=memory,
-            text_qa_template=qa_prompt_template,
-            verbose=True
-        )
-        print("✅ RAG system initialized successfully.")
+        print("✅ RAG system components initialized successfully.")
     except Exception as e:
-        print(f"❌ Error initializing RAG system. Did you run 'ingest.py' successfully? Error: {e}")
+        print(f"❌ Error initializing RAG system: {e}")
 
-def answer_with_rag(question):
+def answer_with_rag(question: str) -> str:
     """
-    Answers a user's question using the LlamaIndex chat engine.
+    Answers a question using the RAG pipeline.
     """
-    if chat_engine is None:
-        return "RAG system is not initialized. Please check the server logs for errors."
+    if retriever is None:
+        return "RAG system not initialized."
 
     try:
-        response = chat_engine.chat(question)
-        return str(response)
-    except Exception as e:
-        print(f"❌ Error during chat processing with Groq API: {e}")
-        return "An error occurred while processing your question with the online service."
+        # Step 1: Retrieve
+        final_nodes = retriever.retrieve(question)
 
-# --- Initialize the system when this module is loaded ---
+        # Step 2: Build prompt
+        context_str = "\n\n".join([node.get_content() for node in final_nodes])
+        final_prompt = qa_template.format(context_str=context_str, question=question)
+
+        # Step 3: Add history
+        # 1. Get the history, which is already a list of ChatMessage objects.
+        messages = memory.get()
+        
+        # 2. Append the new user prompt as a ChatMessage object
+        messages.append(ChatMessage(role=MessageRole.USER, content=final_prompt))
+
+        # Step 4: Get response from LLM
+        response = Settings.llm.chat(messages)
+        response_content = response.message.content
+
+        # Step 5: Update memory
+        # We must wrap the new messages in ChatMessage objects before putting them into memory.
+        memory.put(ChatMessage(role=MessageRole.USER, content=question))
+        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response_content))
+
+        return response_content
+
+    except Exception as e:
+        print(f"❌ Chat processing error: {e}")
+        return "متاسفانه در پردازش سوال شما خطایی رخ داد."
+
+# Auto-initialize when imported
 initialize_rag_system()
