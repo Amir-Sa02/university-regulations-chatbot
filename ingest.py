@@ -26,7 +26,7 @@ def main():
     )
     print(f"Embedding model configured ({Settings.embed_model.model_name}). This runs locally on your CPU.")
 
-    # --- Load and Process the Persian PDF ---
+    # --- Load and Process the PDF ---
     print(f"Loading documents from '{DATA_DIR}'...")
     try:
         reader = SimpleDirectoryReader(DATA_DIR)
@@ -40,13 +40,19 @@ def main():
         print(f"Error loading documents: {e}")
         return
 
-    # --- Custom Splitting based on the Persian word "ماده" ---
+    # --- Custom Splitting ---
+    # Breakdown of r'(?=ماده\s)':
+    #   r: defines a raw string
+    #   (?=...) : This is a "positive lookahead". It finds a match but doesn't include it in the split. This is the key trick.
+    #   ماده\s  : It looks for the literal word "ماده" followed by a whitespace character (\s).
+    # The result is that the text is split, but each new chunk *starts* with "ماده",
     pattern = r'(?=ماده\s)'
     text_chunks = re.split(pattern, full_text)
+
     meaningful_chunks = [chunk.strip() for chunk in text_chunks if chunk.strip()]
     final_documents = [Document(text=chunk) for chunk in meaningful_chunks]
     
-    print(f"Successfully split the document into {len(final_documents)} meaningful chunks based on 'ماده'.")
+    print(f"Successfully split the document into {len(final_documents)} meaningful chunks.")
 
     # --- Create and Persist the Index ---
     print("Creating vector index... This may take a moment.")

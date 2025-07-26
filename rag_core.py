@@ -22,7 +22,7 @@ qa_template = None
 def initialize_rag_system():
 
     global retriever, memory, qa_template
-    print("Initializing Final Stable RAG System...")
+    print("Initializing RAG System...")
     
     # Configure the models
     try:
@@ -57,10 +57,10 @@ def initialize_rag_system():
     qa_template = PromptTemplate(qa_prompt_template_str)
 
     try:
-        storage_context = StorageContext.from_defaults(persist_dir="./storage")
-        index = load_index_from_storage(storage_context)
-        retriever = index.as_retriever(similarity_top_k=3)
-        memory = ChatMemoryBuffer.from_defaults(token_limit=3000)
+        storage_context = StorageContext.from_defaults(persist_dir="./storage")  # Saving management for llamaindex
+        index = load_index_from_storage(storage_context)  # Loading the database 
+        retriever = index.as_retriever(similarity_top_k=3)  # Search engine (retiever): It looks for the most similar 3 chunks to the question
+        memory = ChatMemoryBuffer.from_defaults(token_limit=3000)  # Memory of chatbot: robot can remember last 3000 tokens
         print("✅ RAG system components initialized successfully.")
     except Exception as e:
         print(f"❌ Error initializing RAG system: {e}")
@@ -73,7 +73,7 @@ def answer_with_rag(question: str) -> str:
         return "RAG system not initialized."
 
     try:
-        # Step 1: Retrieve
+        # Step 1: Retrieve: check the similarity of question and the 3 chuncks
         final_nodes = retriever.retrieve(question)
 
         # Step 2: Build prompt
@@ -93,8 +93,8 @@ def answer_with_rag(question: str) -> str:
 
         # Step 5: Update memory
         # We must wrap the new messages in ChatMessage objects before putting them into memory.
-        memory.put(ChatMessage(role=MessageRole.USER, content=question))
-        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response_content))
+        memory.put(ChatMessage(role=MessageRole.USER, content=question))  # Memorizing the user's question
+        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=response_content))  # Memorizing the chatbot's response
 
         return response_content
 
