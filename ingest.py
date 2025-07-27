@@ -1,10 +1,11 @@
 import os
 import re
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, Document
+from llama_index.core import VectorStoreIndex, Settings, Document
+from llama_index.readers.file import PyMuPDFReader
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 def main():
-    print("Starting data ingestion with specialized Persian embedding model...")
+    print("Starting data ingestion...")
 
     # Define the directories
     DATA_DIR = "./data"
@@ -19,21 +20,26 @@ def main():
         os.makedirs(STORAGE_DIR)
 
     # --- Configure the LlamaIndex Settings ---
-    # The sentence-transformers library (used by HuggingFaceEmbedding) will automatically
     # cache this model locally after the first download.
     Settings.embed_model = HuggingFaceEmbedding(
         model_name="heydariAI/persian-embeddings"
     )
     print(f"Embedding model configured ({Settings.embed_model.model_name}). This runs locally on your CPU.")
 
-    # --- Load and Process the PDF ---
+    # --- Load and Process the PDF using pymupdf ---
     print(f"Loading documents from '{DATA_DIR}'...")
     try:
-        reader = SimpleDirectoryReader(DATA_DIR)
-        raw_documents = reader.load_data()
-        if not raw_documents:
+        loader = PyMuPDFReader()
+        pdf_file_path = None
+        for filename in os.listdir(DATA_DIR):
+            if filename.lower().endswith(".pdf"):
+                pdf_file_path = os.path.join(DATA_DIR, filename)
+                break
+        if not pdf_file_path:
             print(f"No documents found in '{DATA_DIR}'.")
             return
+        print(f"Found PDF file")
+        raw_documents = loader.load_data(file_path=pdf_file_path)
         full_text = "\n".join([doc.text for doc in raw_documents])
         print("Successfully loaded document text.")
     except Exception as e:
