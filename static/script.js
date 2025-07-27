@@ -1,6 +1,3 @@
-// File: static/script.js
-// This file contains the updated JavaScript logic with a minor bug fix.
-
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -33,10 +30,6 @@ function showTypingIndicator() {
     const typingDiv = document.createElement('div');
     typingDiv.id = 'typing-indicator';
     typingDiv.className = 'flex items-start gap-4';
-    
-    // --- BUG FIX ---
-    // The SVG for the typing indicator was malformed. This is the corrected version.
-    // I've also made it use the custom avatar for consistency.
     typingDiv.innerHTML = `
         <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center bg-gray-600 overflow-hidden">
              <img src="/static/chatbot-icon.png" alt="AI Avatar" class="w-full h-full rounded-full object-cover">
