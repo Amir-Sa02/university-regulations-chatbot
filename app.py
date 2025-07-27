@@ -6,7 +6,6 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     """Serves the main HTML page and resets the chat memory for a new session."""
-    # We now check for and reset the 'memory' object directly.
     if memory:
         memory.reset() 
         print("Chat history has been reset for the new session.")
