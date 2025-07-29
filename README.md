@@ -81,8 +81,6 @@ pip install -r requirements.txt
 
 This project requires API keys to function. An example file named `.env.example` is included to show the required format.
 
-```
-
 Next, open the new `.env` file and add your actual API keys for the `GROQ_API_KEY` and `COHERE_API_KEY` variables.
 
 ### 4\. Add Data File
