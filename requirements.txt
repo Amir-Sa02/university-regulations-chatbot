@@ -1,0 +1,6 @@
+flask
+python-dotenv
+llama-index
+llama-index-llms-groq
+llama-index-embeddings-cohere
+pypdf
