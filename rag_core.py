@@ -81,18 +81,16 @@ def answer_with_rag(question: str) -> str:
         # Step 2: Build prompt with context and source information
         context_chunks = []
         for node in final_nodes:
-            # Safely get the page number from metadata
+            # Get the page number from metadata
             page_number = node.metadata.get('page_label', 'N/A')
             source_info = f"[منبع: صفحه {page_number}]"
             context_chunks.append(f"{source_info}\n{node.get_content()}")
         
         # Join the chunks with a clear separator
         context_str = "\n\n---\n\n".join(context_chunks)
-        # --- End of update ---
 
         final_prompt = qa_template.format(context_str=context_str, question=question)
 
-        # ... The rest of the function remains the same ...
         messages = memory.get()
         messages.append(ChatMessage(role=MessageRole.USER, content=final_prompt))
 
