@@ -1,71 +1,71 @@
 import os
 import re
-from llama_index.core import VectorStoreIndex, Settings, Document
-from llama_index.readers.file import PyMuPDFReader
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from dotenv import load_dotenv
+
+from llama_index.core import (
+    VectorStoreIndex,
+    Settings,
+    Document,
+    SimpleDirectoryReader,
+)
+from llama_index.embeddings.cohere import CohereEmbedding
+
+load_dotenv()
 
 def main():
     print("Starting data ingestion...")
 
-    # Define the directories
     DATA_DIR = "./data"
     STORAGE_DIR = "./storage"
 
-    # Create directories if they don't exist
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-        print(f"Created data directory at {DATA_DIR}. Please add your document(s) here.")
-        return
     if not os.path.exists(STORAGE_DIR):
         os.makedirs(STORAGE_DIR)
 
-    # --- Configure the LlamaIndex Settings ---
-    # cache this model locally after the first download.
-    Settings.embed_model = HuggingFaceEmbedding(
-        model_name="heydariAI/persian-embeddings"
+    # 1. Configure Settings
+    Settings.embed_model = CohereEmbedding(
+        cohere_api_key=os.getenv("COHERE_API_KEY"),
+        model_name="embed-multilingual-v3.0",
+        input_type="search_document",
     )
-    print(f"Embedding model configured ({Settings.embed_model.model_name}). This runs locally on your CPU.")
+    print(f"Embedding model configured: {Settings.embed_model.model_name}")
 
-    # --- Load and Process the PDF using pymupdf ---
-    print(f"Loading documents from '{DATA_DIR}'...")
-    try:
-        loader = PyMuPDFReader()
-        pdf_file_path = None
-        for filename in os.listdir(DATA_DIR):
-            if filename.lower().endswith(".pdf"):
-                pdf_file_path = os.path.join(DATA_DIR, filename)
-                break
-        if not pdf_file_path:
-            print(f"No documents found in '{DATA_DIR}'.")
-            return
-        print(f"Found PDF file")
-        raw_documents = loader.load_data(file_path=pdf_file_path)
-        full_text = "\n".join([doc.text for doc in raw_documents])
-        print("Successfully loaded document text.")
-    except Exception as e:
-        print(f"Error loading documents: {e}")
+    # 2. Load Documents with Metadata
+    reader = SimpleDirectoryReader(DATA_DIR)
+    documents = reader.load_data()
+    print(f"Successfully loaded {len(documents)} page(s)(documents).")
+    
+    if not documents:
+        print(f"No documents found in '{DATA_DIR}'.")
         return
 
-    # --- Custom Splitting ---
-    # Breakdown of r'(?=ماده\s)':
-    #   r: defines a raw string
-    #   (?=...) : This is a "positive lookahead". It finds a match but doesn't include it in the split. This is the key trick.
-    #   ماده\s  : It looks for the literal word "ماده" followed by a whitespace character (\s).
-    # The result is that the text is split, but each new chunk *starts* with "ماده",
-    pattern = r'(?=ماده\s)'
-    text_chunks = re.split(pattern, full_text)
-
-    meaningful_chunks = [chunk.strip() for chunk in text_chunks if chunk.strip()]
-    final_documents = [Document(text=chunk) for chunk in meaningful_chunks]
+    # 3. Custom Splitting while Preserving Metadata
+    # We combine your reliable regex splitting with the new metadata-aware loading.
+    final_documents = []
+    pattern = r'(?=ماده\s\d+)'
     
-    print(f"Successfully split the document into {len(final_documents)} meaningful chunks.")
+    # We loop through each page (which is one 'Document' object)
+    for doc in documents:
+        page_text = doc.text
+        
+        # Split the page text using the regex
+        text_chunks = re.split(pattern, page_text)
+        
+        # Create a new Document for each chunk and preserve the original metadata
+        for chunk in text_chunks:
+            if chunk.strip():
+                new_doc = Document(text=chunk.strip(), metadata=doc.metadata)
+                final_documents.append(new_doc)
+    
+    print(f"Successfully split the document into {len(final_documents)} chunks with metadata.")
 
-    # --- Create and Persist the Index ---
-    print("Creating vector index... This may take a moment.")
-    index = VectorStoreIndex.from_documents(final_documents, show_progress=True)
+    # 4. Create and Persist the Index from the new documents
+    # We now use our manually created 'final_documents' list.
+    print("Creating vector index...")
+    index = VectorStoreIndex.from_documents(final_documents,show_progress=True)
+    
     index.storage_context.persist(persist_dir=STORAGE_DIR)
 
-    print(f"Data ingestion complete. The index has been created and saved in the '{STORAGE_DIR}' folder.")
+    print(f"✅ Data ingestion complete and saved in '{STORAGE_DIR}'.")
 
 if __name__ == "__main__":
     main()
