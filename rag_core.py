@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 from llama_index.core import StorageContext, load_index_from_storage, PromptTemplate
 from llama_index.core.settings import Settings
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.llms.groq import Groq
+from llama_index.llms.cohere import Cohere
 from llama_index.core.llms import ChatMessage, MessageRole
-from llama_index.embeddings.cohere import CohereEmbedding
+from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 
 # Load environment variables
 load_dotenv()
@@ -21,16 +21,15 @@ def initialize_rag_system():
     
     # Configure the models
     try:
-        Settings.llm = Groq(
-            model="llama-3.1-8b-instant",
-            api_key=os.getenv("GROQ_API_KEY"),
+        Settings.llm = Cohere(
+            model="command-r-plus",
+            api_key=os.getenv("COHERE_API_KEY"),
             temperature=0.3
         )
         
-        Settings.embed_model = CohereEmbedding(
-            cohere_api_key=os.getenv("COHERE_API_KEY"),
-            model_name="embed-multilingual-v3.0",
-            input_type="search_query",
+        Settings.embed_model = HuggingFaceInferenceAPIEmbedding(
+            token=os.getenv("HUGGINGFACE_API_KEY"),
+            model_name="BAAI/bge-m3",
         )
         print(f"Models configured successfully for querying.")
 
@@ -38,22 +37,24 @@ def initialize_rag_system():
         print(f"❌ Error configuring models: {e}")
         return
 
+    # --- Updated and Strengthened Prompt Template ---
     qa_prompt_template_str = (
-        "شما یک دستیار هوش مصنوعی هستید که به عنوان کارشناس متخصص در 'آیین‌نامه آموزشی دانشگاه سجاد' فعالیت می‌کنید.\n"
-        "وظیفه شما پاسخ دقیق و واضح به سوالات دانشجویان بر اساس اطلاعاتی است که در ادامه در بخش 'اطلاعات مرتبط از آیین‌نامه' ارائه شده است.\n\n"
-        "**قوانین رفتاری شما (بسیار مهم):**\n"
-        "1.  **پایبندی کامل به منبع:** پاسخ‌های شما باید همیشه و فقط بر اساس 'اطلاعات مرتبط از آیین‌نامه' باشد. هرگز، تحت هیچ شرایطی، قانونی را از خود ابداع نکنید.\n"
-        "2.  **حفظ حوزه تخصصی:** شما فقط به سوالات مربوط به قوانین آموزشی پاسخ می‌دهید. در صورت پرسیدن سوالات نامرتبط، با احترام بگویید که در این زمینه تخصص ندارید.\n"
-        "3.  **لحن حرفه‌ای و رسمی:** با کاربران به صورت رسمی اما مفید و راهگشا صحبت کنید.\n"
-        "4. **استناد به منبع:** در صورت امکان، در پاسخ خود به منبع اطلاعات (مثلا شماره صفحه) اشاره کنید تا پاسخ شما معتبرتر باشد.\n\n"
-        "---------------------\n"
-        "[اطلاعات مرتبط از آیین‌نامه]\n"
-        "{context_str}\n"
-        "---------------------\n"
-        "[سوال کاربر]\n"
-        "{question}\n"
-        "---------------------\n"
-        "[پاسخ شما]\n"
+    "شما یک دستیار هوش مصنوعی هستید که به عنوان کارشناس متخصص در 'آیین‌نامه آموزشی دانشگاه سجاد' فعالیت می‌کنید.\n"
+    "وظیفه شما پاسخ دقیق و واضح به سوالات دانشجویان فقط و فقط بر اساس اطلاعاتی است که در بخش 'اطلاعات مرتبط از آیین‌نامه' ارائه شده است.\n\n"
+    "**قوانین رفتاری شما (بسیار مهم):**\n"
+    "1.  **پایبندی مطلق به منبع:** پاسخ‌های شما باید همیشه و فقط بر اساس 'اطلاعات مرتبط از آیین‌نامه' باشد. هرگز قانونی را از خود ابداع نکنید یا از دانش عمومی خود استفاده ننمایید.\n"
+    "2.  **تفکر گام به گام:** برای پاسخ به سوالات، به خصوص سوالات پیچیده، ابتدا مراحل استدلال خود را به صورت گام به گام مشخص کن (بررسی قانون، اعمال قانون به شرایط کاربر، نتیجه‌گیری نهایی). سپس پاسخ نهایی را به صورت یک پاراگراف روان و خلاصه به کاربر ارائه بده.\n"
+    "3.  **مدیریت اطلاعات ناموجود:** اگر پاسخ سوال در متن ارائه شده وجود ندارد، به وضوح بگو که 'اطلاعات مشخصی در این مورد در آیین‌نامه یافت نشد' و کاربر را به گروه آموزشی ارجاع بده.\n"
+    "4.  **لحن حرفه‌ای و رسمی:** با کاربران به صورت رسمی اما مفید و راهگشا صحبت کنید.\n"
+    "5. **استناد به منبع:** در پاسخ خود به منبع اطلاعات (مثلا شماره صفحه) اشاره کنید.\n\n"
+    "---------------------\n"
+    "[اطلاعات مرتبط از آیین‌نامه]\n"
+    "{context_str}\n"
+    "---------------------\n"
+    "[سوال کاربر]\n"
+    "{question}\n"
+    "---------------------\n"
+    "[پاسخ شما]\n"
     )
     qa_template = PromptTemplate(qa_prompt_template_str)
 
@@ -67,26 +68,18 @@ def initialize_rag_system():
         print(f"❌ Error initializing RAG system: {e}")
 
 def answer_with_rag(question: str) -> str:
-    """
-    Answers a question using the RAG pipeline.
-    """
     if retriever is None:
         return "RAG system not initialized."
 
     try:
-        # Step 1: Retrieve relevant context
         final_nodes = retriever.retrieve(question)
 
-        # This section is updated to include metadata
-        # Step 2: Build prompt with context and source information
         context_chunks = []
         for node in final_nodes:
-            # Get the page number from metadata
             page_number = node.metadata.get('page_label', 'N/A')
             source_info = f"[منبع: صفحه {page_number}]"
             context_chunks.append(f"{source_info}\n{node.get_content()}")
         
-        # Join the chunks with a clear separator
         context_str = "\n\n---\n\n".join(context_chunks)
 
         final_prompt = qa_template.format(context_str=context_str, question=question)
