@@ -8,7 +8,7 @@ from llama_index.core import (
     Document,
     SimpleDirectoryReader,
 )
-from llama_index.embeddings.cohere import CohereEmbedding
+from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 
 load_dotenv()
 
@@ -22,10 +22,9 @@ def main():
         os.makedirs(STORAGE_DIR)
 
     # 1. Configure Settings
-    Settings.embed_model = CohereEmbedding(
-        cohere_api_key=os.getenv("COHERE_API_KEY"),
-        model_name="embed-multilingual-v3.0",
-        input_type="search_document",
+    Settings.embed_model = HuggingFaceInferenceAPIEmbedding(
+        token=os.getenv("HUGGINGFACE_API_KEY"), 
+        model_name="BAAI/bge-m3",
     )
     print(f"Embedding model configured: {Settings.embed_model.model_name}")
 
