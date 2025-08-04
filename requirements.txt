@@ -1,6 +1,8 @@
 flask
 python-dotenv
-llama-index
-llama-index-llms-groq
-llama-index-embeddings-cohere
 pypdf
+openpyxl
+llama-index
+llama-index-llms-cohere
+llama-index-embeddings-huggingface-api
+llama-index-postprocessor-cohere-rerank
