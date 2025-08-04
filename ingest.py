@@ -1,29 +1,30 @@
 import os
 import json
 from dotenv import load_dotenv
+
 from llama_index.core import (
     VectorStoreIndex,
     Settings,
     Document,
 )
-from llama_index.embeddings.huggingface import HuggingFaceInferenceAPIEmbedding
+# This is the corrected import path for the non-deprecated class
+from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 
 load_dotenv()
 
 def main():
     print("Starting data ingestion from JSONL file...")
 
-    # The data file is now our JSONL file
     JSONL_FILE_PATH = "./data/regulations.jsonl"
     STORAGE_DIR = "./storage"
 
     if not os.path.exists(STORAGE_DIR):
         os.makedirs(STORAGE_DIR)
 
-    # 1. Configure Settings
+    # 1. Configure Settings to use BAAI/bge-m3 via Hugging Face API
     Settings.embed_model = HuggingFaceInferenceAPIEmbedding(
-        token=os.getenv("HUGGINGFACE_API_KEY"), 
-        model_name="BAAI/bge-m3",
+        token=os.getenv("HUGGINGFACE_API_KEY"),
+        model_name="BAAI/bge-m3"
     )
     print(f"Embedding model configured: {Settings.embed_model.model_name}")
 
@@ -32,8 +33,6 @@ def main():
     with open(JSONL_FILE_PATH, 'r', encoding='utf-8') as f:
         for line in f:
             data = json.loads(line)
-            # Create a Document object for each line in the JSONL file
-            # The text and metadata are already perfectly structured.
             doc = Document(
                 text=data["text"],
                 metadata=data["metadata"]
@@ -47,7 +46,6 @@ def main():
         return
 
     # 3. Create and Persist the Index
-    # The splitting logic is no longer needed here.
     print("Creating vector index...")
     index = VectorStoreIndex.from_documents(documents, show_progress=True)
     
