@@ -1,8 +1,6 @@
 flask
 python-dotenv
-pypdf
-openpyxl
+gunicorn
 llama-index
 llama-index-llms-cohere
 llama-index-embeddings-huggingface-api
-llama-index-postprocessor-cohere-rerank
