@@ -7,7 +7,6 @@ from llama_index.core import (
     Settings,
     Document,
 )
-# This is the corrected import path for the non-deprecated class
 from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 
 load_dotenv()
@@ -21,7 +20,7 @@ def main():
     if not os.path.exists(STORAGE_DIR):
         os.makedirs(STORAGE_DIR)
 
-    # 1. Configure Settings to use BAAI/bge-m3 via Hugging Face API
+    # 1. Configure Settings
     Settings.embed_model = HuggingFaceInferenceAPIEmbedding(
         token=os.getenv("HUGGINGFACE_API_KEY"),
         model_name="BAAI/bge-m3"
